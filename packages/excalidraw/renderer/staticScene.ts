@@ -37,79 +37,52 @@ import type {
 } from "../scene/types";
 import type { StaticCanvasAppState, Zoom } from "../types";
 
-const GridLineColor = {
-  Bold: "#dddddd",
-  Regular: "#e5e5e5",
+// ✅ Uniform small dots only (no bold/regular)
+const GridDotColor = {
+  Dark: "rgba(255, 255, 255, 0.1)",
+  Light: "rgba(0, 0, 0, 0.08)",
 } as const;
 
+// ✅ All dots same small size
 const strokeGrid = (
   context: CanvasRenderingContext2D,
-  /** grid cell pixel size */
   gridSize: number,
-  /** setting to 1 will disble bold lines */
   gridStep: number,
   scrollX: number,
   scrollY: number,
   zoom: Zoom,
   width: number,
   height: number,
+  theme: "light" | "dark" = "light",
 ) => {
   const offsetX = (scrollX % gridSize) - gridSize;
   const offsetY = (scrollY % gridSize) - gridSize;
 
   const actualGridSize = gridSize * zoom.value;
 
-  const spaceWidth = 1 / zoom.value;
+  // Don't render when zoomed out too much
+  if (actualGridSize < 5) {
+    return;
+  }
 
   context.save();
 
-  // Offset rendering by 0.5 to ensure that 1px wide lines are crisp.
-  // We only do this when zoomed to 100% because otherwise the offset is
-  // fractional, and also visibly offsets the elements.
-  // We also do this per-axis, as each axis may already be offset by 0.5.
-  if (zoom.value === 1) {
-    context.translate(offsetX % 1 ? 0 : 0.5, offsetY % 1 ? 0 : 0.5);
-  }
+  const dotColor = theme === "dark" ? GridDotColor.Dark : GridDotColor.Light;
 
-  // vertical lines
+  // ✅ Small uniform dot size
+  const dotRadius = 0.5 / zoom.value;
+
+  context.fillStyle = dotColor;
+
+  // ✅ Draw all dots same size
   for (let x = offsetX; x < offsetX + width + gridSize * 2; x += gridSize) {
-    const isBold =
-      gridStep > 1 && Math.round(x - scrollX) % (gridStep * gridSize) === 0;
-    // don't render regular lines when zoomed out and they're barely visible
-    if (!isBold && actualGridSize < 10) {
-      continue;
+    for (let y = offsetY; y < offsetY + height + gridSize * 2; y += gridSize) {
+      context.beginPath();
+      context.arc(x, y, dotRadius, 0, Math.PI * 2);
+      context.fill();
     }
-
-    const lineWidth = Math.min(1 / zoom.value, isBold ? 4 : 1);
-    context.lineWidth = lineWidth;
-    const lineDash = [lineWidth * 3, spaceWidth + (lineWidth + spaceWidth)];
-
-    context.beginPath();
-    context.setLineDash(isBold ? [] : lineDash);
-    context.strokeStyle = isBold ? GridLineColor.Bold : GridLineColor.Regular;
-    context.moveTo(x, offsetY - gridSize);
-    context.lineTo(x, Math.ceil(offsetY + height + gridSize * 2));
-    context.stroke();
   }
 
-  for (let y = offsetY; y < offsetY + height + gridSize * 2; y += gridSize) {
-    const isBold =
-      gridStep > 1 && Math.round(y - scrollY) % (gridStep * gridSize) === 0;
-    if (!isBold && actualGridSize < 10) {
-      continue;
-    }
-
-    const lineWidth = Math.min(1 / zoom.value, isBold ? 4 : 1);
-    context.lineWidth = lineWidth;
-    const lineDash = [lineWidth * 3, spaceWidth + (lineWidth + spaceWidth)];
-
-    context.beginPath();
-    context.setLineDash(isBold ? [] : lineDash);
-    context.strokeStyle = isBold ? GridLineColor.Bold : GridLineColor.Regular;
-    context.moveTo(offsetX - gridSize, y);
-    context.lineTo(Math.ceil(offsetX + width + gridSize * 2), y);
-    context.stroke();
-  }
   context.restore();
 };
 
@@ -209,6 +182,7 @@ const renderLinkIcon = (
     context.restore();
   }
 };
+
 const _renderStaticScene = ({
   canvas,
   rc,
@@ -243,7 +217,7 @@ const _renderStaticScene = ({
   // Apply zoom
   context.scale(appState.zoom.value, appState.zoom.value);
 
-  // Grid
+  // Grid with uniform small dots
   if (renderGrid) {
     strokeGrid(
       context,
@@ -254,6 +228,7 @@ const _renderStaticScene = ({
       appState.zoom,
       normalizedWidth / appState.zoom.value,
       normalizedHeight / appState.zoom.value,
+      appState.theme,
     );
   }
 
@@ -291,7 +266,6 @@ const _renderStaticScene = ({
           element.containerId &&
           elementsMap.has(element.containerId)
         ) {
-          // will be rendered with the container
           return;
         }
 
@@ -406,9 +380,7 @@ const _renderStaticScene = ({
             renderLinkIcon(element, context, appState, elementsMap);
           }
         };
-        // - when exporting the whole canvas, we DO NOT apply clipping
-        // - when we are exporting a particular frame, apply clipping
-        //   if the containing frame is not selected, apply clipping
+
         const frameId = element.frameId || appState.frameToHighlight?.id;
 
         if (

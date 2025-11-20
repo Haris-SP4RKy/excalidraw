@@ -50,22 +50,21 @@ const Footer = ({
                 })}
               />
             )}
+            <div style={{ position: "relative", marginLeft: "8px" }}>
+              {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
+              <HelpButton
+                onClick={() => actionManager.executeAction(actionShortcuts)}
+              />
+            </div>
           </Section>
         </Stack.Col>
       </div>
-      <FooterCenterTunnel.Out />
+      {/* <FooterCenterTunnel.Out /> */}
       <div
         className={clsx("layer-ui__wrapper__footer-right zen-mode-transition", {
           "transition-right": appState.zenModeEnabled,
         })}
-      >
-        <div style={{ position: "relative" }}>
-          {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
-          <HelpButton
-            onClick={() => actionManager.executeAction(actionShortcuts)}
-          />
-        </div>
-      </div>
+      ></div>
       <ExitZenModeButton
         actionManager={actionManager}
         showExitZenModeBtn={showExitZenModeBtn}

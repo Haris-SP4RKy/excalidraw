@@ -147,6 +147,28 @@ polyfill();
 
 window.EXCALIDRAW_THROTTLE_RENDER = true;
 
+// ============================================
+// THEME HELPER FUNCTION
+// ============================================
+const getThemeFromLocalStorage = (): "light" | "dark" => {
+  if (typeof window !== "undefined" && localStorage) {
+    // Check for 'dark' class on document root or body
+    if (
+      document.documentElement.classList.contains("dark") ||
+      document.body.classList.contains("dark")
+    ) {
+      return "dark";
+    }
+
+    // Check localStorage value
+    const savedTheme = localStorage.getItem("darkmode");
+    if (savedTheme === "dark" || savedTheme === "true") {
+      return "dark";
+    }
+  }
+  return "light";
+};
+
 declare global {
   interface BeforeInstallPromptEventChoiceResult {
     outcome: "accepted" | "dismissed";
@@ -164,17 +186,10 @@ declare global {
 
 let pwaEvent: BeforeInstallPromptEvent | null = null;
 
-// Adding a listener outside of the component as it may (?) need to be
-// subscribed early to catch the event.
-//
-// Also note that it will fire only if certain heuristics are met (user has
-// used the app for some time, etc.)
 window.addEventListener(
   "beforeinstallprompt",
   (event: BeforeInstallPromptEvent) => {
-    // prevent Chrome <= 67 from automatically showing the prompt
     event.preventDefault();
-    // cache for later use
     pwaEvent = event;
   },
 );
@@ -232,11 +247,8 @@ const initializeScene = async (opts: {
   const isExternalScene = !!(id || jsonBackendMatch || roomLinkData);
   if (isExternalScene) {
     if (
-      // don't prompt if scene is empty
       !scene.elements.length ||
-      // don't prompt for collab scenes because we don't override local storage
       roomLinkData ||
-      // otherwise, prompt whether user wants to override current scene
       (await openConfirmModal(shareableLinkConfirmDialog))
     ) {
       if (jsonBackendMatch) {
@@ -251,7 +263,6 @@ const initializeScene = async (opts: {
         window.history.replaceState({}, APP_NAME, window.location.origin);
       }
     } else {
-      // https://github.com/excalidraw/excalidraw/issues/1919
       if (document.hidden) {
         return new Promise((resolve, reject) => {
           window.addEventListener(
@@ -298,9 +309,6 @@ const initializeScene = async (opts: {
     const scene = await opts.collabAPI.startCollaboration(roomLinkData);
 
     return {
-      // when collaborating, the state may have already been updated at this
-      // point (we may have received updates from other clients), so reconcile
-      // elements and appState with existing state
       scene: {
         ...scene,
         appState: {
@@ -311,8 +319,6 @@ const initializeScene = async (opts: {
             },
             excalidrawAPI.getAppState(),
           ),
-          // necessary if we're invoking from a hashchange handler which doesn't
-          // go through App.initializeScene() that resets this flag
           isLoading: false,
         },
         elements: reconcileElements(
@@ -342,14 +348,14 @@ const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const isCollabDisabled = isRunningInIframe();
 
+  // Initialize theme from localStorage
+  const [initialTheme] = useState(() => getThemeFromLocalStorage());
+
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
   const [langCode, setLangCode] = useAppLangCode();
 
   const editorInterface = useEditorInterface();
-
-  // initial state
-  // ---------------------------------------------------------------------------
 
   const initialStatePromiseRef = useRef<{
     promise: ResolvablePromise<ExcalidrawInitialDataState | null>;
@@ -361,9 +367,48 @@ const ExcalidrawWrapper = () => {
 
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Sync theme with localStorage on mount
+  useEffect(() => {
+    const themeFromStorage = getThemeFromLocalStorage();
+    if (themeFromStorage !== editorTheme) {
+      setAppTheme(themeFromStorage);
+    }
+  }, []);
+
+  // Listen for localStorage changes (for cross-tab sync)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "darkmode" && e.newValue) {
+        const newTheme =
+          e.newValue === "dark" || e.newValue === "true" ? "dark" : "light";
+        setAppTheme(newTheme);
+      }
+    };
+
+    const handleClassChange = () => {
+      const newTheme = getThemeFromLocalStorage();
+      if (newTheme !== editorTheme) {
+        setAppTheme(newTheme);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Watch for class changes on document element
+    const observer = new MutationObserver(handleClassChange);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      observer.disconnect();
+    };
+  }, [editorTheme, setAppTheme]);
+
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
-    // Delayed so that the app has a time to load the latest SW
     setTimeout(() => {
       trackEvent("load", "version", getVersion());
     }, VERSION_TIMEOUT);
@@ -382,7 +427,6 @@ const ExcalidrawWrapper = () => {
   useHandleLibrary({
     excalidrawAPI,
     adapter: LibraryIndexedDBAdapter,
-    // TODO maybe remove this in several months (shipped: 24-03-11)
     migrationAdapter: LibraryLocalStorageMigrationAdapter,
   });
 
@@ -402,6 +446,24 @@ const ExcalidrawWrapper = () => {
       forceRefresh((prev) => !prev);
     }
   }, [excalidrawAPI]);
+
+  // ============================================
+  // SET BACKGROUND COLOR & GRID BASED ON THEME
+  // ============================================
+  useEffect(() => {
+    if (excalidrawAPI) {
+      const backgroundColor = editorTheme === "dark" ? "#141922" : "#ffffff";
+      const gridSize = 20; // Set to 0 to disable grid
+
+      excalidrawAPI.updateScene({
+        appState: {
+          viewBackgroundColor: backgroundColor,
+          gridSize,
+        },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    }
+  }, [excalidrawAPI, editorTheme]);
 
   useEffect(() => {
     if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
@@ -468,16 +530,26 @@ const ExcalidrawWrapper = () => {
                 });
               });
           }
-          // on fresh load, clear unused files from IDB (from previous
-          // session)
           LocalData.fileStorage.clearObsoleteFiles({ currentFileIds: fileIds });
         }
       }
     };
 
     initializeScene({ collabAPI, excalidrawAPI }).then(async (data) => {
-      loadImages(data, /* isInitialLoad */ true);
-      initialStatePromiseRef.current.promise.resolve(data.scene);
+      loadImages(data, true);
+
+      // ✅ Set initial background when scene loads
+      const initialScene = data.scene || {};
+      const backgroundColor = editorTheme === "dark" ? "#141922" : "#ffffff";
+
+      initialStatePromiseRef.current.promise.resolve({
+        ...initialScene,
+        appState: {
+          ...initialScene.appState,
+          viewBackgroundColor: backgroundColor,
+          gridSize: 20, // Grid spacing (0 = no grid)
+        },
+      });
     });
 
     const onHashChange = async (event: HashChangeEvent) => {
@@ -513,7 +585,6 @@ const ExcalidrawWrapper = () => {
         !document.hidden &&
         ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled)
       ) {
-        // don't sync if local state is newer or identical to browser state
         if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_DATA_STATE)) {
           const localDataState = importFromLocalStorage();
           const username = importUsernameFromLocalStorage();
@@ -539,7 +610,6 @@ const ExcalidrawWrapper = () => {
             elements?.reduce((acc, element) => {
               if (
                 isInitializedImageElement(element) &&
-                // only load and update images that aren't already loaded
                 !currFiles[element.fileId]
               ) {
                 return acc.concat(element.fileId);
@@ -596,7 +666,7 @@ const ExcalidrawWrapper = () => {
         false,
       );
     };
-  }, [isCollabDisabled, collabAPI, excalidrawAPI, setLangCode]);
+  }, [isCollabDisabled, collabAPI, excalidrawAPI, setLangCode, editorTheme]);
 
   useEffect(() => {
     const unloadHandler = (event: BeforeUnloadEvent) => {
@@ -632,8 +702,6 @@ const ExcalidrawWrapper = () => {
       collabAPI.syncElements(elements);
     }
 
-    // this check is redundant, but since this is a hot path, it's best
-    // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
       LocalData.save(elements, appState, files, () => {
         if (excalidrawAPI) {
@@ -664,7 +732,6 @@ const ExcalidrawWrapper = () => {
       });
     }
 
-    // Render the debug scene if the debug canvas is available
     if (debugCanvasRef.current && excalidrawAPI) {
       debugRenderer(
         debugCanvasRef.current,
@@ -741,9 +808,6 @@ const ExcalidrawWrapper = () => {
     [setShareDialogState],
   );
 
-  // browsers generally prevent infinite self-embedding, there are
-  // cases where it still happens, and while we disallow self-embedding
-  // by not whitelisting our own origin, this serves as an additional guard
   if (isSelfEmbedding) {
     return (
       <div
@@ -812,9 +876,13 @@ const ExcalidrawWrapper = () => {
         initialData={initialStatePromiseRef.current.promise}
         isCollaborating={isCollaborating}
         onPointerUpdate={collabAPI?.onPointerUpdate}
+        // ✅ SET GRID MODE ENABLED
+        gridModeEnabled={true}
         UIOptions={{
+          welcomeScreen: false,
           canvasActions: {
             toggleTheme: true,
+            changeViewBackgroundColor: false, // ✅ Disable manual background change
             export: {
               onExportToBackend,
               renderCustomUI: excalidrawAPI
@@ -881,18 +949,30 @@ const ExcalidrawWrapper = () => {
           }
         }}
       >
+        {/* Rest of your components remain the same */}
         <AppMainMenu
           onCollabDialogOpen={onCollabDialogOpen}
           isCollaborating={isCollaborating}
           isCollabEnabled={!isCollabDisabled}
           theme={appTheme}
-          setTheme={(theme) => setAppTheme(theme)}
+          setTheme={(theme) => {
+            setAppTheme(theme);
+            localStorage.setItem(
+              "darkmode",
+              theme === "dark" ? "dark" : "light",
+            );
+            if (theme === "dark") {
+              document.documentElement.classList.add("dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+            }
+          }}
           refresh={() => forceRefresh((prev) => !prev)}
         />
-        <AppWelcomeScreen
+        {/* <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
           isCollabEnabled={!isCollabDisabled}
-        />
+        /> */}
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
           <OverwriteConfirmDialog.Actions.SaveToDisk />
@@ -918,7 +998,7 @@ const ExcalidrawWrapper = () => {
 
         <TTDDialogTrigger />
         {isCollaborating && isOffline && (
-          <div className="alertalert--warning">
+          <div className="alert alert--warning">
             {t("alerts.collabOfflineWarning")}
           </div>
         )}
@@ -1130,9 +1210,18 @@ const ExcalidrawWrapper = () => {
             {
               ...CommandPalette.defaultItems.toggleTheme,
               perform: () => {
-                setAppTheme(
-                  editorTheme === THEME.DARK ? THEME.LIGHT : THEME.DARK,
+                const newTheme =
+                  editorTheme === THEME.DARK ? THEME.LIGHT : THEME.DARK;
+                setAppTheme(newTheme);
+                localStorage.setItem(
+                  "darkmode",
+                  newTheme === "dark" ? "dark" : "light",
                 );
+                if (newTheme === "dark") {
+                  document.documentElement.classList.add("dark");
+                } else {
+                  document.documentElement.classList.remove("dark");
+                }
               },
             },
             {
@@ -1143,8 +1232,6 @@ const ExcalidrawWrapper = () => {
                 if (pwaEvent) {
                   pwaEvent.prompt();
                   pwaEvent.userChoice.then(() => {
-                    // event cannot be reused, but we'll hopefully
-                    // grab new one as the event should be fired again
                     pwaEvent = null;
                   });
                 }

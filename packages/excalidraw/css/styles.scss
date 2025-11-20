@@ -134,15 +134,7 @@ body.excalidraw-cursor-resize * {
     pointer-events: none;
   }
 
-  &.theme--dark {
-    // The percentage is inspired by
-    // https://material.io/design/color/dark-theme.html#properties, which
-    // recommends surface color of #121212, 93% yields #111111 for #FFF
-
-    canvas {
-      filter: var(--theme-filter);
-    }
-  }
+ 
 
   .FixedSideContainer {
     padding-top: var(--sat, 0);
@@ -380,8 +372,8 @@ body.excalidraw-cursor-resize * {
     position: absolute;
     bottom: 1rem;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    justify-content: flex-end;
+    align-items: center;
     cursor: default;
     pointer-events: none !important;
     box-sizing: border-box;
