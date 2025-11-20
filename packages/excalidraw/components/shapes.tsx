@@ -24,6 +24,13 @@ export const SHAPES = [
     fillable: true,
   },
   {
+    icon: TextIcon,
+    value: "text",
+    key: KEYS.T,
+    numericKey: KEYS["8"],
+    fillable: false,
+  },
+  {
     icon: RectangleIcon,
     value: "rectangle",
     key: KEYS.R,
@@ -63,13 +70,6 @@ export const SHAPES = [
     value: "freedraw",
     key: [KEYS.P, KEYS.X],
     numericKey: KEYS["7"],
-    fillable: false,
-  },
-  {
-    icon: TextIcon,
-    value: "text",
-    key: KEYS.T,
-    numericKey: KEYS["8"],
     fillable: false,
   },
   {
