@@ -301,6 +301,7 @@
     "line": "Line",
     "freedraw": "Draw",
     "text": "Text",
+    "stickyNote": "Sticky Note",
     "library": "Library",
     "lock": "Keep selected tool active after drawing",
     "penMode": "Pen mode - prevent touch",

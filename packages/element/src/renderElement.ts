@@ -85,8 +85,7 @@ import type { RoughCanvas } from "roughjs/bin/canvas";
 // as a temp hack to make images in dark theme look closer to original
 // color scheme (it's still not quite there and the colors look slightly
 // desatured, alas...)
-export const IMAGE_INVERT_FILTER =
-  "invert(100%) hue-rotate(180deg) saturate(1.25)";
+export const IMAGE_INVERT_FILTER = "hue-rotate(180deg) saturate(1.25)";
 
 const isPendingImageElement = (
   element: ExcalidrawElement,
@@ -423,6 +422,66 @@ const drawElementOnCanvas = (
       context.lineJoin = "round";
       context.lineCap = "round";
       rc.draw(ShapeCache.get(element)!);
+      break;
+    }
+    case "stickyNote": {
+      // Render filled background
+      context.save();
+      context.fillStyle = element.backgroundColor;
+      context.fillRect(0, 0, element.width, element.height);
+
+      // Optional: Add subtle border for definition
+      context.strokeStyle = "rgba(0, 0, 0, 0.1)";
+      context.lineWidth = 1;
+      context.strokeRect(0, 0, element.width, element.height);
+
+      // Render text if exists
+      if (element.text) {
+        const rtl = isRTL(element.text);
+        const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
+
+        if (shouldTemporarilyAttach) {
+          document.body.appendChild(context.canvas);
+        }
+
+        context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
+        context.font = getFontString(element);
+        context.fillStyle = "#000000"; // Black text for readability
+        context.textAlign = element.textAlign as CanvasTextAlign;
+
+        const lines = element.text.replace(/\r\n?/g, "\n").split("\n");
+        const padding = 10; // Inner padding for text
+
+        const horizontalOffset =
+          element.textAlign === "center"
+            ? element.width / 2
+            : element.textAlign === "right"
+            ? element.width - padding
+            : padding;
+
+        const lineHeightPx = getLineHeightInPx(
+          element.fontSize,
+          element.lineHeight,
+        );
+
+        const verticalOffset =
+          padding +
+          getVerticalOffset(element.fontFamily, element.fontSize, lineHeightPx);
+
+        for (let index = 0; index < lines.length; index++) {
+          context.fillText(
+            lines[index],
+            horizontalOffset,
+            index * lineHeightPx + verticalOffset,
+          );
+        }
+
+        if (shouldTemporarilyAttach) {
+          context.canvas.remove();
+        }
+      }
+
+      context.restore();
       break;
     }
     case "arrow":
@@ -834,6 +893,7 @@ export const renderElement = (
     case "arrow":
     case "image":
     case "text":
+    case "stickyNote":
     case "iframe":
     case "embeddable": {
       // TODO investigate if we can do this in situ. Right now we need to call

@@ -222,6 +222,7 @@ export const isRectangularElement = (
     (element.type === "rectangle" ||
       element.type === "image" ||
       element.type === "text" ||
+      element.type === "stickyNote" ||
       element.type === "iframe" ||
       element.type === "embeddable" ||
       element.type === "frame" ||
@@ -262,6 +263,7 @@ export const isExcalidrawElement = (
     case "freedraw":
     case "line":
     case "frame":
+    case "stickyNote":
     case "magicframe":
     case "image":
     case "selection": {

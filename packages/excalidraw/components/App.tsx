@@ -8090,6 +8090,7 @@ class App extends React.Component<AppProps, AppState> {
     elementType:
       | "selection"
       | "rectangle"
+      | "stickyNote"
       | "diamond"
       | "ellipse"
       | "iframe"

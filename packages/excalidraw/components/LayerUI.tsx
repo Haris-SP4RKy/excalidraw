@@ -57,7 +57,6 @@ import { EyeDropper, activeEyeDropperAtom } from "./EyeDropper";
 import { FixedSideContainer } from "./FixedSideContainer";
 import { HandButton } from "./HandButton";
 import { HelpDialog } from "./HelpDialog";
-import { HintViewer } from "./HintViewer";
 import { ImageExportDialog } from "./ImageExportDialog";
 import { Island } from "./Island";
 import { JSONExportDialog } from "./JSONExportDialog";
@@ -336,12 +335,6 @@ const LayerUI = ({
                             "App-toolbar--compact": isCompactStylesPanel,
                           })}
                         >
-                          <HintViewer
-                            appState={appState}
-                            isMobile={editorInterface.formFactor === "phone"}
-                            editorInterface={editorInterface}
-                            app={app}
-                          />
                           {heading}
                           <Stack.Row gap={spacing.toolbarInnerRowGap}>
                             <PenModeButton

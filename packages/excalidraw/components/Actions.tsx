@@ -82,6 +82,7 @@ import {
   DotsHorizontalIcon,
   SelectionIcon,
   pencilIcon,
+  StickyNoteIcon,
 } from "./icons";
 
 import { Island } from "./Island";

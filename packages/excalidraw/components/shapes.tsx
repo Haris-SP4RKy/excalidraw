@@ -9,6 +9,7 @@ import {
   LineIcon,
   FreedrawIcon,
   TextIcon,
+  StickyNoteIcon,
   ImageIcon,
   EraserIcon,
 } from "./icons";
@@ -29,6 +30,13 @@ export const SHAPES = [
     key: KEYS.T,
     numericKey: KEYS["8"],
     fillable: false,
+  },
+  {
+    icon: StickyNoteIcon, // <-- ADD THIS BLOCK!
+    value: "stickyNote",
+    key: null, // Use any shortcut you want
+    numericKey: null, // Use an unused numeric key if needed, or null
+    fillable: true,
   },
   {
     icon: RectangleIcon,

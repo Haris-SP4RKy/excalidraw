@@ -224,6 +224,15 @@ export const generateRoughOptions = (
       }
       return options;
     }
+    case "stickyNote": {
+      // Sticky notes always have solid fill with their background color
+      options.fillStyle = "solid";
+      options.fill = "#f2f2f2";
+      options.roughness = 0; // Smooth, no sketch style
+      options.stroke = "rgba(0, 0, 0, 0.1)"; // Light border
+      options.strokeWidth = 1;
+      return options;
+    }
     case "line":
     case "freedraw": {
       if (isPathALoop(element.points)) {
@@ -660,6 +669,18 @@ const generateElementShape = (
       }
       return shape;
     }
+    case "stickyNote": {
+      // Generate a simple filled rectangle for sticky notes
+      const shape = generator.rectangle(0, 0, element.width, element.height, {
+        stroke: "rgba(0, 0, 0, 0.1)", // Subtle border
+        strokeWidth: 1,
+        fill: "#f2f2f2",
+        fillStyle: "solid",
+        roughness: 0, // Smooth edges for sticky notes
+        seed: element.seed,
+      });
+      return shape;
+    }
     case "diamond": {
       let shape: ElementShapes[typeof element.type];
 
@@ -921,6 +942,7 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
     case "image":
     case "iframe":
     case "text":
+    case "stickyNote":
     case "selection":
       return getPolygonShape(element);
     case "arrow":

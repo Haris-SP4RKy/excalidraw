@@ -149,11 +149,6 @@ export const ToolButton = React.forwardRef(
               aria-disabled={!!props.disabled}
             >
               {props.icon || props.label}
-              {props.keyBindingLabel && (
-                <span className="ToolIcon__keybinding">
-                  {props.keyBindingLabel}
-                </span>
-              )}
               {props.isLoading && <Spinner />}
             </div>
           )}

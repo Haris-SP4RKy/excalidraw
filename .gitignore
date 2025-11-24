@@ -1,6 +1,5 @@
 .DS_Store
 .env.development.local
-.env.local
 .env.production.local
 .env.test.local
 .envrc
@@ -27,3 +26,4 @@ dev-dist
 html
 meta*.json
 .claude
+config.bat

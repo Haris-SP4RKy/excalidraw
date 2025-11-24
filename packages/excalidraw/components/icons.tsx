@@ -407,6 +407,45 @@ export const TextIcon = createIcon(
   tablerIconProps,
 );
 
+export const StickyNoteIcon = createIcon(
+  <svg
+    viewBox="0 0 22 22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect
+      x="4"
+      y="4"
+      width="14"
+      height="14"
+      rx="0"
+      fill="#FFE066"
+      stroke="currentColor"
+    />
+    <line x1="6" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="1" />
+    <line
+      x1="6"
+      y1="10"
+      x2="14"
+      y2="10"
+      stroke="currentColor"
+      strokeWidth="1"
+    />
+    <line
+      x1="6"
+      y1="13"
+      x2="10"
+      y2="13"
+      stroke="currentColor"
+      strokeWidth="1"
+    />
+  </svg>,
+);
+
 export const TextSizeIcon = createIcon(
   <g stroke="currentColor" strokeWidth="1.5">
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
